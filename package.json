@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node dist/server.js",
-    "build": "babel src --out-dir dist --copy-files",
+    "build": "babel src --out-dir dist --copy-files --ignore 'src/**/*.jsx','src/**/client/**','src/**/frontend/**','src/**/App.js'",
     "test": "jest --coverage --detectOpenHandles",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.js",
