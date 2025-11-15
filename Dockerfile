@@ -1,30 +1,34 @@
-FROM node:18-alpine as build
-
+# Dockerfile — multi-stage build (recommended)
+# Builder (install dev deps, build)
+FROM node:18-bullseye AS builder
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install ALL deps (dev + prod)
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci
 
-# Copy source code
+# Copy source and build
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# Runner (production image with only prod deps)
+FROM node:18-bullseye AS runner
+WORKDIR /app
 
-# Copy build files to nginx
-COPY --from=build /app/build /usr/share/nginx/html
+# Copy package files and install production deps only
+COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy built artifacts from builder
+COPY --from=builder /app/dist ./dist
 
-# Expose port
-EXPOSE 3000
+ENV NODE_ENV=production
+ENV PORT 5000
+EXPOSE 5000
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Simple health check (optional)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
+  CMD wget -qO- --timeout=2 http://127.0.0.1:${PORT}/health || exit 1
+
+# Start the app (assumes "start": "node dist/server.js")
+CMD ["npm", "start"]
