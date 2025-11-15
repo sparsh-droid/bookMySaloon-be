@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getUserBookings, cancelBooking } from '../services/api';
 import Loading from '../components/Loading';
 import '../styles/MyBookings.css';
@@ -9,11 +9,8 @@ const MyBookings = () => {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
 
-  useEffect(() => {
-    fetchBookings();
-  }, [filter]);
-
-  const fetchBookings = async () => {
+  // fetchBookings is wrapped in useCallback so it can be safely used in useEffect and called from handlers
+  const fetchBookings = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -21,15 +18,22 @@ const MyBookings = () => {
       const params = filter !== 'all' ? { status: filter } : {};
       const response = await getUserBookings(params);
 
-      if (response.data.success) {
-        setBookings(response.data.data.bookings);
+      if (response.data && response.data.success) {
+        setBookings(response.data.data.bookings || []);
+      } else {
+        setBookings([]);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load bookings');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  // call fetchBookings on mount and whenever filter changes (via fetchBookings dependency)
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
 
   const handleCancelBooking = async (bookingId) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) {
@@ -38,7 +42,8 @@ const MyBookings = () => {
 
     try {
       await cancelBooking(bookingId);
-      fetchBookings(); // Refresh bookings
+      // Refresh bookings after cancellation
+      fetchBookings();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to cancel booking');
     }
@@ -145,3 +150,4 @@ const MyBookings = () => {
 };
 
 export default MyBookings;
+
